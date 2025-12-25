@@ -48,8 +48,13 @@ class FolderScannerApp:
         # Header
         layout.addWidget(QLabel("<h2>Smart Folder Scanner</h2>"))
 
+        # Get user directory
+        user_dir = os.path.expanduser("~")
+        default_scan_dir = user_dir
+        default_output_file = os.path.join(user_dir, "Downloads", "scanned_files_output.txt")
+
         # Folder picker
-        self.folder_entry = QLineEdit()
+        self.folder_entry = QLineEdit(default_scan_dir)
         btn_folder = QPushButton("Browse…")
         btn_folder.clicked.connect(self.pick_folder)
 
@@ -60,7 +65,7 @@ class FolderScannerApp:
         layout.addLayout(row)
 
         # Output file picker
-        self.output_entry = QLineEdit()
+        self.output_entry = QLineEdit(default_output_file)
         btn_output = QPushButton("Save As…")
         btn_output.clicked.connect(self.pick_output)
 
@@ -125,12 +130,34 @@ class FolderScannerApp:
         layout.addWidget(self.btn_scan)
 
     def pick_folder(self):
-        path = QFileDialog.getExistingDirectory(self.window, "Select Folder")
+        # Start with current value in the text field
+        current_path = self.folder_entry.text().strip()
+        if not current_path or not os.path.exists(current_path):
+            current_path = os.path.expanduser("~")
+        
+        path = QFileDialog.getExistingDirectory(
+            self.window, 
+            "Select Folder",
+            current_path  # Start dialog at current path
+        )
         if path:
             self.folder_entry.setText(path)
 
     def pick_output(self):
-        path, _ = QFileDialog.getSaveFileName(self.window, "Save Output", "", "Text Files (*.txt)")
+        # Start with current value in the text field
+        current_path = self.output_entry.text().strip()
+        if not current_path:
+            current_path = os.path.join(os.path.expanduser("~"), "Downloads")
+        
+        # Get directory from current path
+        current_dir = os.path.dirname(current_path) if os.path.dirname(current_path) else current_path
+        
+        path, _ = QFileDialog.getSaveFileName(
+            self.window, 
+            "Save Output", 
+            current_path if os.path.isdir(current_path) or not os.path.exists(current_dir) else current_path,
+            "Text Files (*.txt)"
+        )
         if path:
             self.output_entry.setText(path)
 
