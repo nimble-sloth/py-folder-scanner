@@ -17,3 +17,19 @@ Built with **PySide6** and structured for maintainability.
 ```bash
 pip install -r requirements.txt
 python main.py
+
+---
+
+## Building the Windows EXE
+
+**PowerShell:**
+
+```powershell
+python -m PyInstaller folder-scanner.spec
+```
+
+This generates the executable here:
+
+```
+dist/folder-scanner/folder-scanner.exe
+```
