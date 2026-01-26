@@ -28,7 +28,7 @@ python main.py
 python -m PyInstaller folder-scanner.spec
 ```
 
-This generates the executable here:
+## This generates the executable here:
 
 ```
 dist/folder-scanner/folder-scanner.exe
