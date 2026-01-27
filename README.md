@@ -28,6 +28,19 @@ python -m PyInstaller folder-scanner.spec
 
 ## This generates the executable here:
 
-```
+```bash
 dist/folder-scanner.exe
+```
+
+## Pushing Changes to Git (from Terminal)
+
+Use the following commands inside the project folder:
+
+### 1. Check which files changed
+```bash
+git status
+git add .
+git commit -m "Your commit message"
+git push
+git push -u origin main
 ```
