@@ -22,14 +22,12 @@ python main.py
 
 ## Building the Windows EXE
 
-**PowerShell:**
-
-```powershell
+```bash
 python -m PyInstaller folder-scanner.spec
 ```
 
 ## This generates the executable here:
 
 ```
-dist/folder-scanner/folder-scanner.exe
+dist/folder-scanner.exe
 ```
