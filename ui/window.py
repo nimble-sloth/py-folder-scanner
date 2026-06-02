@@ -2,10 +2,9 @@ import os
 import time
 from PySide6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QLabel, QPushButton, QLineEdit,
-    QFileDialog, QGridLayout, QCheckBox, QHBoxLayout, QProgressBar, QScrollArea
+    QFileDialog, QGridLayout, QCheckBox, QHBoxLayout, QProgressBar, QComboBox
 )
-from PySide6.QtCore import Qt, QThread, Signal
-
+from PySide6.QtCore import QThread, Signal
 from scanner.tree import write_tree
 from scanner.scan import scan_tree
 
@@ -13,23 +12,26 @@ from scanner.scan import scan_tree
 class ScanWorker(QThread):
     finished = Signal(str, float, str)  # status, seconds, error
 
-    def __init__(self, folder, output, skip, exts, include_tree):
+    def __init__(self, folder, output, skip_tree, skip_content, exts, include_tree, include_paths, root_files):
         super().__init__()
         self.folder = folder
         self.output = output
-        self.skip = skip
+        self.skip_tree = skip_tree
+        self.skip_content = skip_content
         self.exts = exts
         self.include_tree = include_tree
+        self.include_paths = include_paths
+        self.root_files = root_files
 
     def run(self):
         start = time.time()
         try:
             with open(self.output, "w", encoding="utf-8") as f:
                 if self.include_tree:
-                    f.write(write_tree(self.folder))
+                    f.write(write_tree(self.folder, self.skip_tree))
                     f.write("\n\n")
 
-                f.write(scan_tree(self.folder, self.skip, self.exts))
+                f.write(scan_tree(self.folder, self.skip_content, self.exts, self.include_paths, self.root_files))
 
             self.finished.emit("Done", time.time() - start, "")
         except Exception as e:
@@ -47,6 +49,16 @@ class FolderScannerApp:
 
         # Header
         layout.addWidget(QLabel("<h2>Smart Folder Scanner</h2>"))
+
+        # Project type selector
+        self.project_type = QComboBox()
+        self.project_type.addItems(["Custom", "Spring Boot", "Angular", "Database"])
+        # When the user changes project type, update checkboxes,
+        # custom filenames, skip folders, and helper note.
+        self.project_type.currentTextChanged.connect(self.apply_project_type)
+
+        layout.addWidget(QLabel("Project type:"))
+        layout.addWidget(self.project_type)
 
         # Get user directory
         user_dir = os.path.expanduser("~")
@@ -76,14 +88,18 @@ class FolderScannerApp:
         layout.addLayout(row2)
 
         # Skip folders
-        self.skip_entry = QLineEdit(".git,node_modules,dist,build,.idea,.vscode")
-        layout.addWidget(QLabel("Folders to skip (comma-separated):"))
-        layout.addWidget(self.skip_entry)
+        self.skip_tree_entry = QLineEdit(".git,node_modules,dist,build,.idea,.vscode,.angular")
+        layout.addWidget(QLabel("Folders to skip in tree and content scan:"))
+        layout.addWidget(self.skip_tree_entry)
+
+        self.skip_content_entry = QLineEdit("test-results,coverage,__pycache__")
+        layout.addWidget(QLabel("Folders to skip only when writing file content:"))
+        layout.addWidget(self.skip_content_entry)
 
         # Extensions grid
         ext_defaults = [
             ".go", ".py", ".java", ".js", ".ts", ".tsx", ".jsx",
-            ".html", ".css", ".json", ".md",
+            ".html", ".css", ".scss", ".json", ".md",
             ".yaml", ".yml", ".xml",
             ".sh", ".bat", ".ps1", ".sql",
             ".cs", ".cpp", ".c", ".h",
@@ -110,6 +126,25 @@ class FolderScannerApp:
         layout.addWidget(QLabel("Custom extensions or filenames:"))
         layout.addWidget(self.custom_ext)
 
+        # Optional folder scope.
+        # Example for Angular: only scan src folder for file contents.
+        # Leave empty to scan the whole selected folder.
+        self.include_paths_entry = QLineEdit()
+        self.include_paths_entry.setPlaceholderText("src")
+        layout.addWidget(QLabel("Only scan these folders for file content (comma-separated, optional):"))
+        layout.addWidget(self.include_paths_entry)
+
+        # Optional critical root files.
+        # These are included even when folder scope is limited to src.
+        self.root_files_entry = QLineEdit()
+        self.root_files_entry.setPlaceholderText("package.json,angular.json,proxy.conf.js")
+        layout.addWidget(QLabel("Always include these root files (comma-separated, optional):"))
+        layout.addWidget(self.root_files_entry)
+
+        self.note = QLabel("")
+        self.note.setWordWrap(True)
+        layout.addWidget(self.note)
+
         # Include tree
         self.include_tree = QCheckBox("Include folder tree")
         self.include_tree.setChecked(True)
@@ -128,6 +163,66 @@ class FolderScannerApp:
         self.btn_scan = QPushButton("Scan")
         self.btn_scan.clicked.connect(self.start_scan)
         layout.addWidget(self.btn_scan)
+
+    def apply_project_type(self, project_type):
+        # Clear all extension checkboxes first.
+        for checkbox in self.ext_checks.values():
+            checkbox.setChecked(False)
+
+        self.note.setText("")
+
+        if project_type == "Spring Boot":
+            selected = [".java", ".properties", ".xml", ".html"]
+            self.custom_ext.setText("pom.xml")
+            self.skip_tree_entry.setText(".git,target,build,.idea,.vscode")
+            self.skip_content_entry.setText("target,build,out,__pycache__")
+
+        elif project_type == "Angular":
+            selected = [".ts", ".scss", ".html", ".json"]
+            self.custom_ext.setText("")
+            self.include_paths_entry.setText("src")
+            self.root_files_entry.setText(
+                "package.json,"
+                "angular.json,"
+                "proxy.conf.js,"
+                "proxy.conf.json,"
+                "tsconfig.json,"
+                "tsconfig.app.json,"
+                "tslint.json,"
+                "vitest.config.mjs,"
+                ".npmrc,"
+                ".nvmrc,"
+                ".eslintrc.json,"
+                ".prettierrc.js,"
+                ".stylelintrc,"
+                ".rj-ui-build-config.json,"
+                "README.md,"
+                "ReadMe.md,"
+                "rj-readme.md"
+            )
+            self.skip_tree_entry.setText(".git,node_modules,dist,.angular,.idea,.vscode,testresults,test-results,coverage,lcov-report")
+            self.skip_content_entry.setText("node_modules,dist,.angular,coverage,testresults,test-results,lcov-report,e2e")
+            self.note.setText(
+                "Angular mode scans src for code and also includes important root config files."
+            )
+
+        elif project_type == "Database":
+            selected = [".sql"]
+            self.custom_ext.setText("")
+            self.skip_tree_entry.setText(".git,.idea,.vscode")
+            self.skip_content_entry.setText("backup,archive,tmp,temp")
+
+        else:
+            selected = [".go", ".py", ".java"]
+            self.custom_ext.setText("")
+            self.skip_tree_entry.setText(".git,node_modules,dist,build,.idea,.vscode")
+            self.skip_content_entry.setText("test-results,coverage,__pycache__")
+            self.include_paths_entry.setText("")
+            self.root_files_entry.setText("")
+
+        for ext in selected:
+            if ext in self.ext_checks:
+                self.ext_checks[ext].setChecked(True)
 
     def pick_folder(self):
         # Start with current value in the text field
@@ -169,17 +264,31 @@ class FolderScannerApp:
             self.status.setText("Missing folder or output file")
             return
 
-        skip = [s.strip() for s in self.skip_entry.text().split(",") if s.strip()]
+        skip_tree = [s.strip() for s in self.skip_tree_entry.text().split(",") if s.strip()]
+        skip_content_only = [s.strip() for s in self.skip_content_entry.text().split(",") if s.strip()]
+        skip_content = sorted(set(skip_tree + skip_content_only))
         exts = [e for e, c in self.ext_checks.items() if c.isChecked()]
 
         if self.custom_ext.text().strip():
             exts += [s.strip() for s in self.custom_ext.text().split(",")]
 
+        include_paths = [s.strip() for s in self.include_paths_entry.text().split(",") if s.strip()]
+        root_files = [s.strip() for s in self.root_files_entry.text().split(",") if s.strip()]
+
         self.progress.show()
         self.status.setText("Scanning…")
         self.btn_scan.setEnabled(False)
 
-        self.worker = ScanWorker(folder, output, skip, exts, self.include_tree.isChecked())
+        self.worker = ScanWorker(
+            folder,
+            output,
+            skip_tree,
+            skip_content,
+            exts,
+            self.include_tree.isChecked(),
+            include_paths,
+            root_files
+        )
         self.worker.finished.connect(self.scan_done)
         self.worker.start()
 
