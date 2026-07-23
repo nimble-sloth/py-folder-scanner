@@ -52,7 +52,8 @@ class FolderScannerApp:
 
         # Project type selector
         self.project_type = QComboBox()
-        self.project_type.addItems(["Custom", "Spring Boot", "Angular", "Database"])
+        self.project_type.addItems(["Custom","Spring Boot","Angular","Database","Python"])
+        
         # When the user changes project type, update checkboxes,
         # custom filenames, skip folders, and helper note.
         self.project_type.currentTextChanged.connect(self.apply_project_type)
@@ -100,7 +101,7 @@ class FolderScannerApp:
         ext_defaults = [
             ".go", ".py", ".java", ".js", ".ts", ".tsx", ".jsx",
             ".html", ".css", ".scss", ".json", ".md",
-            ".yaml", ".yml", ".xml",
+            ".yaml", ".yml", ".toml", ".xml",
             ".sh", ".bat", ".ps1", ".sql",
             ".cs", ".cpp", ".c", ".h",
             ".kt", ".rs", ".swift", ".php", ".rb", ".properties",
@@ -170,6 +171,8 @@ class FolderScannerApp:
             checkbox.setChecked(False)
 
         self.note.setText("")
+        self.include_paths_entry.setText("")
+        self.root_files_entry.setText("")
 
         if project_type == "Spring Boot":
             selected = [".java", ".properties", ".xml", ".html"]
@@ -211,7 +214,59 @@ class FolderScannerApp:
             self.custom_ext.setText("")
             self.skip_tree_entry.setText(".git,.idea,.vscode")
             self.skip_content_entry.setText("backup,archive,tmp,temp")
+            
+        elif project_type == "Python":
+            selected = [
+                ".py",
+                ".md",
+                ".json",
+                ".yaml",
+                ".yml",
+            ]
 
+            self.custom_ext.setText(
+                "requirements.txt,"
+                "pyproject.toml,"
+                "setup.py,"
+                "setup.cfg,"
+                "Dockerfile,"
+                ".gitignore,"
+                ".env.example,"
+                "README.md,"
+                "LICENSE"
+            )
+
+            self.skip_tree_entry.setText(
+                ".git,"
+                ".venv,"
+                "venv,"
+                "__pycache__,"
+                ".pytest_cache,"
+                ".mypy_cache,"
+                ".ruff_cache,"
+                ".tox,"
+                ".nox,"
+                ".pytype,"
+                ".pyre,"
+                ".hypothesis,"
+                ".idea,"
+                ".vscode,"
+                "dist,"
+                "build"
+            )
+
+            self.skip_content_entry.setText(
+                "__pycache__,"
+                ".pytest_cache,"
+                ".mypy_cache,"
+                ".ruff_cache,"
+                "dist,"
+                "build"
+            )
+
+            self.note.setText(
+                "Python mode scans the entire project and includes common Python project files."
+            )
         else:
             selected = [".go", ".py", ".java"]
             self.custom_ext.setText("")
